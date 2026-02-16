@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "repokit"
+version = "0.1.0"
+description = "Minimal CLI to scaffold and search agent/data/ml repositories"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+  { name = "Maciej" }
+]
+dependencies = [
+  "typer>=0.9",
+  "jinja2>=3.1",
+  "rich>=13.0",
+  "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+]
+
+[project.scripts]
+repokit = "repokit.cli:app"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["repokit*"]
+
+[tool.setuptools.package-data]
+repokit = ["templates/**/*.j2"]

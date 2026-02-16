@@ -1,0 +1,12 @@
+---
+trigger: always_on
+---
+
+# Agent Safety
+- Follow AGENTS.md as the canonical instruction source.
+{% if db_type != "none" -%}
+- Default to read-only role and SELECT-only queries.
+- For exploration, always use WHERE + LIMIT and avoid SELECT *.
+- Use scratch schemas per session: `scratch_<user>_<branch>`.
+- Do not run DROP/DELETE/UPDATE/TRUNCATE unless explicitly approved.
+{% endif %}

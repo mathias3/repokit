@@ -1,0 +1,37 @@
+# AGENTS.md (Canonical Instructions for {{ project_name }})
+
+## Scope
+- This file is the single source of truth for all coding agents.
+- Tool-specific instruction files should reference this file.
+- Keep instructions explicit and task-focused.
+
+## Project focus
+- Repo type: `{{ repo_type }}`
+- Build reliable outcomes with reproducible workflows.
+- Prefer minimal, scoped changes.
+
+## Working style
+- Make small, verifiable changes.
+- Ask before breaking changes, schema changes, or production-impacting actions.
+- Document key decisions in `CHANGELOG.md`.
+
+{% if db_type != "none" %}## Database safety defaults
+- Default to read-only access.
+- For exploration, always use WHERE + LIMIT and avoid SELECT *.
+- Use per-session scratch schemas: `scratch_<user>_<branch>`.
+- Do not run DROP/DELETE/UPDATE/TRUNCATE unless explicitly approved.
+- Target database flavor: `{{ db_type }}`.
+{% endif %}
+
+## Parallel sessions
+- Prefer git worktrees: one worktree = one branch = one session.
+- Keep session artifacts isolated.
+
+## Feature triad mode
+- Use separate branches for parallel implementations: `-amp`, `-claude`, `-windsurf` (optional `-gemini`).
+- Compare diffs and tests, then merge the winning variant.
+
+## Active tools
+{% for tool in tools -%}
+- {{ tool }}
+{% endfor %}
