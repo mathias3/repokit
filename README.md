@@ -41,6 +41,12 @@ repokit list --scope /home/maciej/projects
 repokit info /home/maciej/projects/Index_task
 ```
 
+### Check scaffold drift (missing/unexpected files)
+
+```bash
+repokit sync /home/maciej/projects/Index_task
+```
+
 ## Template strategy
 
 Shared templates are in `repokit/templates/_shared/`:

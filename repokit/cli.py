@@ -11,6 +11,7 @@ from . import __version__
 from .config import LAYER_RULES, REPO_TYPES
 from .scaffold import ScaffoldError, ScaffoldOptions, scaffold_project
 from .search import search_markdown
+from .sync import SyncError, analyze_sync
 
 app = typer.Typer(help="Scaffold and search context-first repositories.")
 console = Console()
@@ -114,6 +115,35 @@ def repo_info(
             table.add_row(layer, target, status)
 
     console.print(table)
+
+
+@app.command("sync")
+def sync_repo(
+    repo_path: Path = typer.Argument(..., help="Path to a repository."),
+    repo_type: str = typer.Option("", "--type", help=f"Override repo type ({', '.join(REPO_TYPES)})"),
+):
+    """Check documentation drift against repokit templates."""
+    try:
+        report = analyze_sync(repo_path.resolve(), repo_type=repo_type or None)
+    except SyncError as error:
+        console.print(f"[red]Error:[/red] {error}")
+        raise typer.Exit(code=1) from error
+
+    console.print(f"[bold]Repo type:[/bold] {report.repo_type}")
+
+    if report.missing:
+        console.print("[yellow]Missing expected files:[/yellow]")
+        for item in report.missing:
+            console.print(f"- {item}")
+    else:
+        console.print("[green]No missing expected files.[/green]")
+
+    if report.unexpected:
+        console.print("[yellow]Unexpected scaffold files:[/yellow]")
+        for item in report.unexpected:
+            console.print(f"- {item}")
+    else:
+        console.print("[green]No unexpected scaffold files.[/green]")
 
 
 @app.command("version")
