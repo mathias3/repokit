@@ -8,6 +8,7 @@ Minimal CLI to scaffold and search context-first repositories for agent/data/ml 
 - scaffold new repositories from templates (`agent`, `ml`, `data`, `app`, `automation`)
 - enforce a canonical `AGENTS.md` pattern with thin wrappers
 - search markdown knowledge across repositories without loading full context
+- manage cross-project context memory (`inventory`, `transfer`, `compress`)
 
 ## Install (editable)
 
@@ -45,6 +46,24 @@ repokit info /home/maciej/projects/Index_task --format json
 
 ```bash
 repokit sync /home/maciej/projects/Index_task --format json
+```
+
+### Audit context-memory coverage
+
+```bash
+repokit context inventory --scope /home/maciej/projects --format json
+```
+
+### Copy or move context docs between projects
+
+```bash
+repokit context transfer --from /home/maciej/projects/a --to /home/maciej/projects/b --mode copy --format json
+```
+
+### Compress large learnings/changelog files
+
+```bash
+repokit context compress /home/maciej/projects/a --file LEARNINGS.md --threshold 200 --format json
 ```
 
 ## Output formats
@@ -95,6 +114,7 @@ Error responses use:
 
 Shared templates are in `repokit/templates/_shared/`:
 - `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `AMP.md`, `WINDSURF.md`
+- `PROJECT_RULES.md`, `LEARNINGS.md`, `CONTEXT_TRANSFER.md`
 - `.windsurf/rules/safety.md`
 - `.gitignore`, `CHANGELOG.md`
 

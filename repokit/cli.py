@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from enum import Enum
 from pathlib import Path
-from typing import Callable
+from typing import Callable, List, Optional
 
 import typer
 import yaml
@@ -12,11 +12,21 @@ from rich.table import Table
 
 from . import __version__
 from .config import LAYER_RULES, REPO_TYPES
+from .context_memory import (
+    CONTEXT_FILES,
+    ContextError,
+    ContextMode,
+    compress_context_file,
+    inventory_context,
+    transfer_context,
+)
 from .scaffold import ScaffoldError, ScaffoldOptions, scaffold_project
 from .search import search_markdown
 from .sync import SyncError, analyze_sync
 
 app = typer.Typer(help="Scaffold and search context-first repositories.")
+context_app = typer.Typer(help="Manage codified context across repokit repositories.")
+app.add_typer(context_app, name="context")
 console = Console()
 
 EXIT_OK = 0
@@ -366,6 +376,201 @@ def version(
 ) -> None:
     """Print version."""
     _emit_success(command="version", output_format=output_format, data={"version": __version__})
+
+
+@context_app.command("inventory")
+def context_inventory(
+    scope: Path = typer.Option(Path("."), "--scope", help="Directory to inspect."),
+    output_format: OutputFormat = typer.Option(OutputFormat.table, "--format", help="Output format."),
+):
+    """List context-memory coverage for repokit repositories."""
+    try:
+        rows = inventory_context(scope.resolve())
+    except ContextError as error:
+        _emit_error(
+            command="context inventory",
+            output_format=output_format,
+            exit_code=EXIT_INVALID_INPUT,
+            code="context_error",
+            message=str(error),
+        )
+        raise
+
+    if not rows:
+        _emit_error(
+            command="context inventory",
+            output_format=output_format,
+            exit_code=EXIT_NOT_FOUND,
+            code="no_repositories",
+            message="No repokit repositories found.",
+        )
+        raise
+
+    data = {
+        "scope": str(scope.resolve()),
+        "files": list(CONTEXT_FILES),
+        "repositories": [
+            {
+                "path": str(row.repo_path),
+                "type": row.repo_type,
+                "present": list(row.files_present),
+                "missing": list(row.files_missing),
+            }
+            for row in rows
+        ],
+    }
+
+    def render_md(payload: dict) -> str:
+        lines = [f"# Context inventory in `{payload['scope']}`", ""]
+        lines.append(f"- **required_files**: {', '.join(payload['files'])}")
+        lines.append("")
+        for repo in payload["repositories"]:
+            lines.append(f"- `{repo['path']}` ({repo['type']})")
+            lines.append(f"  - present: {', '.join(repo['present']) if repo['present'] else 'none'}")
+            lines.append(f"  - missing: {', '.join(repo['missing']) if repo['missing'] else 'none'}")
+        return "\n".join(lines)
+
+    def render_table(payload: dict) -> None:
+        table = Table(title=f"Context inventory: {payload['scope']}")
+        table.add_column("Path")
+        table.add_column("Type")
+        table.add_column("Present")
+        table.add_column("Missing")
+        for repo in payload["repositories"]:
+            table.add_row(
+                repo["path"],
+                repo["type"],
+                ", ".join(repo["present"]) if repo["present"] else "-",
+                ", ".join(repo["missing"]) if repo["missing"] else "-",
+            )
+        console.print(table)
+
+    _emit_success(
+        command="context inventory",
+        output_format=output_format,
+        data=data,
+        md_renderer=render_md,
+        table_renderer=render_table,
+    )
+
+
+@context_app.command("transfer")
+def context_transfer(
+    source: Path = typer.Option(..., "--from", help="Source repokit repository."),
+    destination: Path = typer.Option(..., "--to", help="Destination repokit repository."),
+    mode: ContextMode = typer.Option(ContextMode.copy, "--mode", help="copy or move."),
+    files: Optional[List[str]] = typer.Option(None, "--file", help="Specific context file(s) to transfer."),
+    output_format: OutputFormat = typer.Option(OutputFormat.table, "--format", help="Output format."),
+):
+    """Copy or move context docs between repositories."""
+    file_tuple = tuple(files) if files else None
+    try:
+        report = transfer_context(
+            source_repo=source.resolve(),
+            destination_repo=destination.resolve(),
+            mode=mode,
+            files=file_tuple,
+        )
+    except ContextError as error:
+        _emit_error(
+            command="context transfer",
+            output_format=output_format,
+            exit_code=EXIT_INVALID_INPUT,
+            code="context_error",
+            message=str(error),
+        )
+        raise
+
+    data = {
+        "source": str(report.source),
+        "destination": str(report.destination),
+        "mode": report.mode,
+        "copied": list(report.copied),
+        "moved": list(report.moved),
+        "skipped": list(report.skipped),
+    }
+
+    def render_md(payload: dict) -> str:
+        lines = [f"# Context transfer ({payload['mode']})", ""]
+        lines.append(f"- **source**: `{payload['source']}`")
+        lines.append(f"- **destination**: `{payload['destination']}`")
+        lines.append(f"- **copied**: {', '.join(payload['copied']) if payload['copied'] else 'none'}")
+        lines.append(f"- **moved**: {', '.join(payload['moved']) if payload['moved'] else 'none'}")
+        lines.append(f"- **skipped**: {', '.join(payload['skipped']) if payload['skipped'] else 'none'}")
+        return "\n".join(lines)
+
+    def render_table(payload: dict) -> None:
+        _print_key_value_table(
+            title="Context transfer",
+            rows=[
+                ("mode", payload["mode"]),
+                ("source", payload["source"]),
+                ("destination", payload["destination"]),
+                ("copied", ", ".join(payload["copied"]) if payload["copied"] else "-"),
+                ("moved", ", ".join(payload["moved"]) if payload["moved"] else "-"),
+                ("skipped", ", ".join(payload["skipped"]) if payload["skipped"] else "-"),
+            ],
+        )
+
+    _emit_success(
+        command="context transfer",
+        output_format=output_format,
+        data=data,
+        md_renderer=render_md,
+        table_renderer=render_table,
+    )
+
+
+@context_app.command("compress")
+def context_compress(
+    repo_path: Path = typer.Argument(..., help="Path to a repokit repository."),
+    file_path: str = typer.Option("LEARNINGS.md", "--file", help="Context file to compress."),
+    threshold: int = typer.Option(200, "--threshold", help="Compress only if lines exceed this threshold."),
+    keep_tail: int = typer.Option(80, "--keep-tail", help="Tail lines to preserve in the source file."),
+    header_lines: int = typer.Option(12, "--header-lines", help="Header lines to preserve in the source file."),
+    output_format: OutputFormat = typer.Option(OutputFormat.table, "--format", help="Output format."),
+):
+    """Compress a long context file into archive notes."""
+    try:
+        report = compress_context_file(
+            repo_path=repo_path.resolve(),
+            file_path=file_path,
+            threshold=threshold,
+            keep_tail_lines=keep_tail,
+            header_lines=header_lines,
+        )
+    except ContextError as error:
+        _emit_error(
+            command="context compress",
+            output_format=output_format,
+            exit_code=EXIT_INVALID_INPUT,
+            code="context_error",
+            message=str(error),
+        )
+        raise
+
+    data = {
+        "repo_path": str(report.repo_path),
+        "file": str(report.file_path),
+        "threshold": report.threshold,
+        "original_lines": report.original_lines,
+        "final_lines": report.final_lines,
+        "archived": report.archived,
+        "archive_path": str(report.archive_path) if report.archive_path else "",
+    }
+
+    def render_md(payload: dict) -> str:
+        lines = [f"# Context compress: `{payload['file']}`", ""]
+        lines.append(f"- **repo_path**: `{payload['repo_path']}`")
+        lines.append(f"- **threshold**: {payload['threshold']}")
+        lines.append(f"- **original_lines**: {payload['original_lines']}")
+        lines.append(f"- **final_lines**: {payload['final_lines']}")
+        lines.append(f"- **archived**: {payload['archived']}")
+        if payload["archive_path"]:
+            lines.append(f"- **archive_path**: `{payload['archive_path']}`")
+        return "\n".join(lines)
+
+    _emit_success(command="context compress", output_format=output_format, data=data, md_renderer=render_md)
 
 
 if __name__ == "__main__":

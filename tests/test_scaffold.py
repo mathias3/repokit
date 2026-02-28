@@ -21,6 +21,9 @@ def test_scaffold_creates_agent_repo(tmp_path: Path):
     assert (target / "prompts" / "README.md").exists()
     assert (target / ".windsurf" / "rules" / "safety.md").exists()
     assert (target / ".repokit.yml").exists()
+    assert (target / "PROJECT_RULES.md").exists()
+    assert (target / "LEARNINGS.md").exists()
+    assert (target / "CONTEXT_TRANSFER.md").exists()
 
 
 def test_scaffold_creates_ml_specific_files(tmp_path: Path):

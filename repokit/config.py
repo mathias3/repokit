@@ -7,8 +7,8 @@ DEFAULT_TOOLS = ("claude", "windsurf", "amp", "gemini")
 
 LAYER_RULES = {
     "A_executive": ("AGENTS.md", "README.md"),
-    "B_contracts": ("DATA_CONTRACTS.md", "MODEL_CARD.md", "PIPELINE.md", "prompts/README.md"),
-    "C_planning": ("PRD.md", "CHANGELOG.md", "epics"),
+    "B_contracts": ("DATA_CONTRACTS.md", "MODEL_CARD.md", "PIPELINE.md", "prompts/README.md", "PROJECT_RULES.md"),
+    "C_planning": ("PRD.md", "CHANGELOG.md", "LEARNINGS.md", "CONTEXT_TRANSFER.md", "epics"),
     "D_scratch": ("temp", "notebooks"),
 }
 
