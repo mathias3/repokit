@@ -20,32 +20,76 @@ pip install -e .
 ### Create new repo scaffold
 
 ```bash
-repokit new "Sales Loss Forecasting" --type ml --destination /home/maciej/projects
+repokit new "Sales Loss Forecasting" --type ml --destination /home/maciej/projects --format json
 ```
 
 ### Search markdown context
 
 ```bash
-repokit search "redshift safety" --scope /home/maciej/projects
+repokit search "redshift safety" --scope /home/maciej/projects --format json
 ```
 
 ### List repokit-managed repositories
 
 ```bash
-repokit list --scope /home/maciej/projects
+repokit list --scope /home/maciej/projects --format json
 ```
 
 ### Show layered document status for one repository
 
 ```bash
-repokit info /home/maciej/projects/Index_task
+repokit info /home/maciej/projects/Index_task --format json
 ```
 
 ### Check scaffold drift (missing/unexpected files)
 
 ```bash
-repokit sync /home/maciej/projects/Index_task
+repokit sync /home/maciej/projects/Index_task --format json
 ```
+
+## Output formats
+
+All commands support:
+
+```bash
+--format table|json|md
+```
+
+Default is `table`.
+
+## Stable JSON envelope
+
+Every command in `--format json` returns:
+
+```json
+{
+  "ok": true,
+  "command": "search",
+  "exit_code": 0,
+  "data": {}
+}
+```
+
+Error responses use:
+
+```json
+{
+  "ok": false,
+  "command": "search",
+  "exit_code": 3,
+  "error": {
+    "code": "no_matches",
+    "message": "No matches found."
+  }
+}
+```
+
+## Exit codes
+
+- `0`: success
+- `1`: runtime/internal error
+- `2`: invalid input/arguments
+- `3`: not found / no results
 
 ## Template strategy
 
@@ -66,3 +110,10 @@ Type-specific templates are in:
 ```bash
 pytest -q
 ```
+
+## Recipes
+
+Ready-to-run pipelines:
+
+- `recipes/context-audit/pipeline.sh`
+- `recipes/scaffold-check/pipeline.sh`
